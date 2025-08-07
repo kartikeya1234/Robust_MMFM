@@ -1,6 +1,6 @@
 # Robustness of Multi-Modal Foundational models
 
-- Code adapted from ![here][https://github.com/chs20/RobustVLM].
+- Code adapted from [here](https://github.com/chs20/RobustVLM).
 
 #### Prerequisites
 - Execute `$ cd Robust_mmfm` command to get into the said directory. **Ensure** that Python version is `3.11.*`. Execute `$ pip install -r requirements.txt` to download all the required packages. 
