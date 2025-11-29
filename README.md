@@ -1,28 +1,140 @@
-# Robustness of Multi-Modal Foundational models
+# Robustness of Multi-Modal Foundational Models
 
-- Code adapted from [here](https://github.com/chs20/RobustVLM).
+Research code for evaluating the robustness of multi-modal foundational models (MMFMs) against adversarial attacks. This repository contains implementations for testing vision-language models like OpenFlamingo against sparse and non-sparse adversarial perturbations, as well as fine-tuning CLIP models on adversarial examples and COCO counterfactuals.
 
-#### Prerequisites
-- Execute `$ cd Robust_mmfm` command to get into the said directory. **Ensure** that Python version is `3.11.*`. Execute `$ pip install -r requirements.txt` to download all the required packages. 
-##### Sparse vs Non-Sparse attacks evaluation
-1. OpenFlamingo 9 billion parameters model can be downloaded from [here](https://huggingface.co/openflamingo/OpenFlamingo-9B-vitl-mpt7b) by following the provided instructions. After downloading it, it should be located in `/HOME/.cache/huggingface/hub/` folder with the name `models--openflamingo--OpenFlamingo-9B-vitl-mpt7b`. 
-2. Install `jdk1.8.0_202` from [here](https://tubcloud.tu-berlin.de/s/YdRcyp888N5qwkx) as it is required for the computation of CIDEr score. You might have to add the line `export PATH=$PATH:JDKDir/jdk1.8.0_202/bin` in your `.bashrc` or  `.zshrc` file. Also **set** `$ LANG=en_US.UTF-8` if the `LANG` environment variable is in Deutsch. You can check it by typing `$ echo $LANG`.
-3. Download `VizWiz` dataset (train and validation) from [here](https://vizwiz.org/tasks-and-datasets/vqa/). The files such as `train_questions_vqa_format.json`, `train_annotations_vqa_format.json`, `val_questions_vqa_format.json` and `val_annotations_vqa_format.json` are already there in the respective folder, however, if they are corrupted then download them from [here](https://vizwiz.org/tasks-and-datasets/vqa/). Copy all of the training and val images into the `./open_flamingo_datasets/VizWiz/train` and `./open_flamingo_datasets/VizWiz/val` folder, respectively.
-4. The `OKVQA` dataset (Training and Testing images) from [here](https://okvqa.allenai.org/download.html). The files such as `OpenEnded_mscoco_train2014_questions.json`, `mscoco_train2014_annotations.json`, `OpenEnded_mscoco_val2014_questions.json` and `mscoco_val2014_annotations.json` are already there in the respective folder, however, if they are corrupted then download them from [here](https://okvqa.allenai.org/download.html). Copy all of them into the `./open_flamingo_datasets/OKVQA` folder.
-5. Download the `Flickr30k` dataset from [here](https://github.com/awsaf49/flickr-dataset) by following the instructions given on the GitHub page. Files such as `karpathy_flickr30k.json` and `dataset_flickr30k_coco_style.json` are already there in the respective folder, however, if they are corrupted then download them from [here](https://nc.mlcloud.uni-tuebingen.de/index.php/s/mtRnQFaZJkR9zaX). Copy all the images into the `./open_flamingo_datasets/Flickr30k/Images` folder.
-6. Download the `COCO` dataset (Training and Validation sets) 2014 from [here](https://cocodataset.org/#download). Files such as `karpathy_coco.json` (from ) and `captions_val2014.json` are already there in their respective places, however, if they are corrupted then download from [here](https://nc.mlcloud.uni-tuebingen.de/index.php/s/mtRnQFaZJkR9zaX) and [here](https://github.com/tylin/coco-caption/blob/master/annotations/captions_val2014.json), respectively. Copy all the training and val images to `./open_flamingo_datasets/COCO/train2014` and `./open_flamingo_datasets/COCO/val2014` folder.
-##### Fine-tuning CLIP models (APGD vs COCO CFs)
-1. Download the `images.zip` for `COCO-CFs` from [here](https://huggingface.co/datasets/Intel/COCO-Counterfactuals/tree/main/data). Unzip and put the images in `./open_flamingo_datasets/COCO_CF/images` and `./clip_train_datasets/MS_COCO_COCO_CF/images`, and copy all the original images (all images ending with `_0.jpg`, like  `236308_0_img_0.jpg`) into the `./clip_train_datasets/MS_COCO_APGD_4/images`, `./clip_train_datasets/MS_COCO_APGD_1/images`. Use the command `$ cp ./open_flamingo_datasets/COCO_CF/images/*_0.jpg ./clip_train_datasets/MS_COCO_APGD_4/images` for transfering it into `./clip_train_datasets/MS_COCO_APGD_4`. Do the same for all.
-2. Download the `apgd_1_images.zip` and `apgd_4_images.zip` from [here](https://tubcloud.tu-berlin.de/s/YdRcyp888N5qwkx) and [here](https://tubcloud.tu-berlin.de/s/YdRcyp888N5qwkx), respectively. Copy all of the images in them into the `./clip_train_datasets/MS_COCO_APGD_1/images` and `./clip_train_datasets/MS_COCO_APGD_4/images` folders, respectively.
-3. Download the `COCO` 2017 validation set from [here](https://cocodataset.org/#download). Copy all the images in the folder into the `./clip_train_datasets/MS_COCO/images`, `./clip_train_datasets/MS_COCO_APGD_4/images`,`./clip_train_datasets/MS_COCO_APGD_1/images` and `./clip_train_datasets/MS_COCO_COCO_CF/images` folders.
-4. Download the `ms_coco_captions.json` file from [here](https://tubcloud.tu-berlin.de/s/YdRcyp888N5qwkx). Place it into the `./clip_train_datasets/MS_COCO` folder.
-5. Download the `Caltech101` and `Caltech256` datasets in `.zip` format from [here](https://tubcloud.tu-berlin.de/s/YdRcyp888N5qwkx). Unzip them in the `./image_classification_datasets` folder. For the `ImageNet` dataset, the dataset would have to be downloaded externally, and then the path must be filled in the `clip_classification.py` file in the `./vlm_eval` folder, line 52 `imagenet_path=''`
-----
-----
-#### Experiments
+**Code adapted from:** [RobustVLM](https://github.com/chs20/RobustVLM)
 
-##### Sparse vs Non-Sparse attacks evaluation
-- The command for executing the sparse vs non-sparse attacks experiments is given below. Something similar should be given in both of the files, `run_script.sh` and `run_script_slurm.sh`, which are located in the `bash` folder.
+## Table of Contents
+
+- [Robustness of Multi-Modal Foundational Models](#robustness-of-multi-modal-foundational-models)
+  - [Table of Contents](#table-of-contents)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Dataset Setup](#dataset-setup)
+    - [VLM Evaluation Datasets](#vlm-evaluation-datasets)
+      - [1. VizWiz Dataset](#1-vizwiz-dataset)
+      - [2. OK-VQA Dataset](#2-ok-vqa-dataset)
+      - [3. Flickr30k Dataset](#3-flickr30k-dataset)
+      - [4. COCO Dataset (2014)](#4-coco-dataset-2014)
+    - [CLIP Fine-tuning Datasets](#clip-fine-tuning-datasets)
+      - [1. COCO Counterfactuals (COCO-CFs)](#1-coco-counterfactuals-coco-cfs)
+      - [2. APGD Adversarial Images](#2-apgd-adversarial-images)
+      - [3. COCO 2017 Validation Set](#3-coco-2017-validation-set)
+      - [4. COCO Captions and Classification Datasets](#4-coco-captions-and-classification-datasets)
+  - [Usage](#usage)
+    - [Sparse vs Non-Sparse Attacks Evaluation](#sparse-vs-non-sparse-attacks-evaluation)
+      - [Configuration Options](#configuration-options)
+      - [Running the Scripts](#running-the-scripts)
+    - [Fine-tuning CLIP Models](#fine-tuning-clip-models)
+      - [Parameters](#parameters)
+      - [Running the Scripts](#running-the-scripts-1)
+    - [Zero-Shot Image Classification](#zero-shot-image-classification)
+      - [Parameters](#parameters-1)
+      - [Running the Scripts](#running-the-scripts-2)
+    - [Image-Text Retrieval](#image-text-retrieval)
+      - [Parameters](#parameters-2)
+  - [License](#license)
+  - [Acknowledgments](#acknowledgments)
+
+## Prerequisites
+
+- **Python version:** 3.11.x
+- **Java:** JDK 1.8.0_202 (required for CIDEr score computation)
+- **CUDA-compatible GPU** (for model training and inference)
+
+## Installation
+
+1. Clone the repository and navigate to the project directory:
+   ```bash
+   cd Robust_mmfm
+   ```
+
+2. Install required Python packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Download the OpenFlamingo 9B model from [HuggingFace](https://huggingface.co/openflamingo/OpenFlamingo-9B-vitl-mpt7b). After downloading, it should be located in `$HOME/.cache/huggingface/hub/` with the name `models--openflamingo--OpenFlamingo-9B-vitl-mpt7b`.
+
+4. Install [JDK 1.8.0_202](https://tubcloud.tu-berlin.de/s/YdRcyp888N5qwkx) and add it to your PATH:
+   ```bash
+   # Add to ~/.bashrc or ~/.zshrc
+   export PATH=$PATH:/path/to/jdk1.8.0_202/bin
+   export LANG=en_US.UTF-8
+   ```
+
+## Dataset Setup
+
+### VLM Evaluation Datasets
+
+#### 1. VizWiz Dataset
+- Download the [VizWiz VQA dataset](https://vizwiz.org/tasks-and-datasets/vqa/) (train and validation sets)
+- Annotation files are included in the repository, but can be re-downloaded if corrupted
+- Place images in:
+  - `./open_flamingo_datasets/VizWiz/train`
+  - `./open_flamingo_datasets/VizWiz/val`
+
+#### 2. OK-VQA Dataset
+- Download the [OK-VQA dataset](https://okvqa.allenai.org/download.html) (training and testing images)
+- Annotation files are included in the repository
+- Place all images in: `./open_flamingo_datasets/OKVQA`
+
+#### 3. Flickr30k Dataset
+- Download using instructions from [awsaf49/flickr-dataset](https://github.com/awsaf49/flickr-dataset)
+- Annotation files (`karpathy_flickr30k.json`, `dataset_flickr30k_coco_style.json`) are included
+- Alternative annotation download: [TU Berlin Cloud](https://nc.mlcloud.uni-tuebingen.de/index.php/s/mtRnQFaZJkR9zaX)
+- Place images in: `./open_flamingo_datasets/Flickr30k/Images`
+
+#### 4. COCO Dataset (2014)
+- Download [COCO 2014](https://cocodataset.org/#download) train and validation sets
+- Annotation files are included in the repository
+- Alternative annotation downloads:
+  - [karpathy_coco.json](https://nc.mlcloud.uni-tuebingen.de/index.php/s/mtRnQFaZJkR9zaX)
+  - [captions_val2014.json](https://github.com/tylin/coco-caption/blob/master/annotations/captions_val2014.json)
+- Place images in:
+  - `./open_flamingo_datasets/COCO/train2014`
+  - `./open_flamingo_datasets/COCO/val2014`
+### CLIP Fine-tuning Datasets
+
+#### 1. COCO Counterfactuals (COCO-CFs)
+- Download `images.zip` from [HuggingFace COCO-Counterfactuals](https://huggingface.co/datasets/Intel/COCO-Counterfactuals/tree/main/data)
+- Unzip and place images in:
+  - `./open_flamingo_datasets/COCO_CF/images`
+  - `./clip_train_datasets/MS_COCO_COCO_CF/images`
+- Copy original images (ending with `_0.jpg`) to:
+  ```bash
+  cp ./open_flamingo_datasets/COCO_CF/images/*_0.jpg ./clip_train_datasets/MS_COCO_APGD_4/images
+  cp ./open_flamingo_datasets/COCO_CF/images/*_0.jpg ./clip_train_datasets/MS_COCO_APGD_1/images
+  ```
+
+#### 2. APGD Adversarial Images
+- Download from [TU Berlin Cloud](https://tubcloud.tu-berlin.de/s/YdRcyp888N5qwkx):
+  - `apgd_1_images.zip` → `./clip_train_datasets/MS_COCO_APGD_1/images`
+  - `apgd_4_images.zip` → `./clip_train_datasets/MS_COCO_APGD_4/images`
+
+#### 3. COCO 2017 Validation Set
+- Download from [COCO website](https://cocodataset.org/#download)
+- Copy images to all CLIP training dataset folders:
+  - `./clip_train_datasets/MS_COCO/images`
+  - `./clip_train_datasets/MS_COCO_APGD_4/images`
+  - `./clip_train_datasets/MS_COCO_APGD_1/images`
+  - `./clip_train_datasets/MS_COCO_COCO_CF/images`
+
+#### 4. COCO Captions and Classification Datasets
+- Download `ms_coco_captions.json` from [TU Berlin Cloud](https://tubcloud.tu-berlin.de/s/YdRcyp888N5qwkx)
+- Place in: `./clip_train_datasets/MS_COCO`
+- Download classification datasets from [TU Berlin Cloud](https://tubcloud.tu-berlin.de/s/YdRcyp888N5qwkx):
+  - `Caltech101.zip` → unzip in `./image_classification_datasets`
+  - `Caltech256.zip` → unzip in `./image_classification_datasets`
+- For ImageNet: Download externally and set path in `vlm_eval/clip_classification.py` line 52
+
+---
+
+## Usage
+
+### Sparse vs Non-Sparse Attacks Evaluation
+
+Evaluate vision-language models against adversarial attacks. The following command demonstrates the evaluation setup (available in `bash/run_script.sh` and `bash/run_script_slurm.sh`):
 ```bash
 python -m vlm_eval.run_evaluation \
 --eval_flickr30 \
@@ -79,23 +191,53 @@ python -m vlm_eval.run_evaluation \
 --ok_vqa_train_annotations_json_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/OKVQA/mscoco_train2014_annotations.json \
 --ok_vqa_test_image_dir_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/COCO/val2014 \
 --ok_vqa_test_questions_json_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/OKVQA/OpenEnded_mscoco_val2014_questions.json \
---ok_vqa_test_annotations_json_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/OKVQA/mscoco_val2014_annotations.json \
+--ok_vqa_test_annotations_json_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/OKVQA/mscoco_val2014_annotations.json
 ```
-- For targeted attacks, set `--targeted --target_str "TARGET_STRING"`, otherwise remove it. Targeted attacks are **only available** for `COCO` dataset.
-- For the 4-shot sub-setting, set `--shots 4`. For `query` mode, set `--mask_out context`. For `all` mode, set `--maskout none`. For the 0-shot sub-setting, set `--shots 0`.
-- For switching adversarial attacks, set `--attack apgd` for the APGD attack and `--attack saif` for the SAIF attack. The hyper-parameters can be manipulated for APGD attack by changing `--eps`, and for SAIF, `--eps` and `--k`. For unperturbed results, set `--attack none`. To save the adversarial samples as Pytorch tensors `.pt`, remove `--dont_save_adv`.
-- To conduct image captioning with COCO dataset, set to `--eval_coco`, and for Flickr30k, set to `--eval_flickr30`. For VQA tasks, set to `--eval_vizwiz` for VizWiz dataset and `--eval_ok_vqa` for OkVQA dataset.
-- To reproduce the perturbation factor graph, set `--pert_factor_graph 1`. It **only works** in the 0-shot sub-setting.
-- To execute the files, follow these commands
+
+#### Configuration Options
+
+**Attack Types:**
+- APGD attack: `--attack apgd --eps <epsilon>`
+- SAIF attack: `--attack saif --eps <epsilon> --k <k_value>`
+- No attack (clean): `--attack none`
+- Targeted attack (COCO only): `--targeted --target_str "TARGET_STRING"`
+
+**Shot Settings:**
+- 0-shot: `--shots 0`
+- 4-shot: `--shots 4`
+  - Query mode: `--mask_out context`
+  - All mode: `--mask_out none`
+
+**Evaluation Tasks:**
+- Image Captioning:
+  - COCO: `--eval_coco`
+  - Flickr30k: `--eval_flickr30`
+- Visual Question Answering:
+  - VizWiz: `--eval_vizwiz`
+  - OK-VQA: `--eval_ok_vqa`
+
+**Other Options:**
+- Save adversarial samples as `.pt` files: remove `--dont_save_adv`
+- Generate perturbation factor graph (0-shot only): `--pert_factor_graph 1`
+
+#### Running the Scripts
+
 ```bash
-$ chmod +x ./bash/run_script.sh
-$ chmod +x ./bash/run_script_slurm.sh
-$ ./bash/run_script.sh # For running it on your local machine or remotely OR
-$ sbatch ./bash/run_script_slurm.sh # For running it on SLURM (https://slurm.schedmd.com/documentation.html)
+# Make scripts executable
+chmod +x ./bash/run_script.sh
+chmod +x ./bash/run_script_slurm.sh
+
+# Run locally or remotely
+./bash/run_script.sh
+
+# Run on SLURM cluster
+sbatch ./bash/run_script_slurm.sh
 ```
-----
-##### Fine-tuning CLIP models (APGD vs COCO CFs)
-- Given below is the command for fine-tuning CLIP pre-trained models. It is available in the `train_clip.sh` and `train_clip_slurm.sh` files.
+
+### Fine-tuning CLIP Models
+
+Fine-tune CLIP models on adversarial examples (APGD) and COCO counterfactuals. Example command (available in `bash/train_clip.sh` and `bash/train_clip_slurm.sh`):
+
 ```bash
 python vlm_eval/clip_train.py \
     --num_epochs 20 \
@@ -107,20 +249,43 @@ python vlm_eval/clip_train.py \
     --save_model \
     --save_model_path ./fine_tuned_clip_models/APGD_4/
 ```
-- This command will fine-tune pre-trained CLIP models for 20 epochs on the `base` dataset for the APGD attack with $\epsilon=\frac{4}{255}$.
-- To execute the files, follow these commands
-```bash
-$ chmod +x ./bash/clip_train.sh
-$ chmod +x ./bash/clip_train_slurm.sh
-$ ./bash/clip_train.sh # For running it on your local machine or remotely OR
-$ sbatch ./bash/clip_train_slurm.sh # For running it on SLURM (https://slurm.schedmd.com/documentation.html)
-```
-- `--data_name` chooses which dataset to fine-tune the model on, while `--data_seeds` provides the seed for which randomly chosen `base`or `medium` dataset to choose from. 
-- There are four options given for fine-tuning the model on for the APGD and Coco counterfactuals datasets - `[MS_COCO, base, medium, all]`. `MS_COCO` will train the model on MS COCO dataset that we derived and described in the thesis (in the Appendix), whereas `base, medium` or `all` will train them on the base, medium and all dataset of the given method.
-- There are 4 methods available - `APGD_4, APGD_1`, `NONE` and `COCO_CF`. Choosing any one of them would train the model on the given dataset, except for `NONE` as it is used with `MS_COCO` as there is no adversarial sample or counterfactual present.
 
-###### 0-Shot Image Classification
-- Given below is the command for conducting the 0-shot image classification. It is given in the `clip_classification.sh` and `clip_classification_slurm.sh` files
+This fine-tunes CLIP for 20 epochs on the `base` dataset with APGD attack (ε=4/255).
+
+#### Parameters
+
+- `--data_name`: Dataset size variant
+  - `MS_COCO`: Standard MS COCO (see thesis appendix)
+  - `base`: Base subset
+  - `medium`: Medium subset
+  - `all`: Complete dataset
+
+- `--method`: Training method
+  - `APGD_4`: APGD with ε=4/255
+  - `APGD_1`: APGD with ε=1/255
+  - `COCO_CF`: COCO Counterfactuals
+  - `NONE`: Clean MS COCO (no perturbations)
+
+- `--data_seeds`: Random seeds for dataset sampling (e.g., `112 113 114 115`)
+
+#### Running the Scripts
+
+```bash
+# Make scripts executable
+chmod +x ./bash/clip_train.sh
+chmod +x ./bash/clip_train_slurm.sh
+
+# Run locally or remotely
+./bash/clip_train.sh
+
+# Run on SLURM cluster
+sbatch ./bash/clip_train_slurm.sh
+```
+
+### Zero-Shot Image Classification
+
+Evaluate fine-tuned CLIP models on image classification tasks. Example command (available in `bash/clip_classification.sh` and `bash/clip_classification_slurm.sh`):
+
 ```bash
 python vlm_eval/clip_classification.py \
     --data base \
@@ -128,20 +293,39 @@ python vlm_eval/clip_classification.py \
     --dataset Caltech101
 ```
 
-- This command will conduct 0-shot image classification on the pre-trained CLIP model fine-tuned on the `base` dataset of the COCO counterfactuals for the validation set of the dataset `Caltech101`.
-- To execute the file, follow these commands
+This performs zero-shot classification on Caltech101 using a CLIP model fine-tuned on the `base` COCO counterfactuals dataset.
+
+#### Parameters
+
+- `--data`: Dataset variant
+  - `MS_COCO`, `base`, `medium`, `all`: Fine-tuned models
+  - `non_fine_tuned`: Pre-trained CLIP only (no fine-tuning)
+
+- `--method`: `APGD_4`, `APGD_1`, `COCO_CF`, `NONE`
+
+- `--dataset`: Classification dataset
+  - `Food101`, `CIFAR10`, `CIFAR100`, `ImageNet`, `Caltech101`, `Caltech256`
+
+**Note:** Evaluation is hardcoded to 20 epochs.
+
+#### Running the Scripts
+
 ```bash
-$ chmod +x ./bash/clip_classification.sh
-$ chmod +x ./bash/clip_classification_slurm.sh
-$ ./bash/clip_classificationrun_script.sh # For running it on your local machine or remotely OR
-$ sbatch ./bash/clip_classificationrun_script_slurm.sh # For running it on SLURM (https://slurm.schedmd.com/documentation.html)
+chmod +x ./bash/clip_classification.sh
+chmod +x ./bash/clip_classification_slurm.sh
+
+# Run locally or remotely
+./bash/clip_classification.sh
+
+# Run on SLURM cluster
+sbatch ./bash/clip_classification_slurm.sh
 ```
-- Availble datasets are `Food101, CIFAR10, CIFAR100, ImageNet,  Caltech101` and `Caltech256`.  
-- Again, the available options for `--data` are `MS_COCO, base, medium, all` and `non_fine_tuned`.
-- To get 0-shot image classification accuracy for only pre-trained CLIP model, set `--data non_fine_tuned`, regardless of the method.
-- It is **hardcoded** to 20 epochs.
-###### Image-Text Retrieval
-- Given below is the command to perform **i2t** and **t2i**.
+
+---
+
+### Image-Text Retrieval
+
+Perform image-to-text (i2t) and text-to-image (t2i) retrieval tasks:
 ```bash
 python -m vlm_eval.run_evaluation \
 --eval_flickr30 \
@@ -198,8 +382,27 @@ python -m vlm_eval.run_evaluation \
 --ok_vqa_train_annotations_json_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/OKVQA/mscoco_train2014_annotations.json \
 --ok_vqa_test_image_dir_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/COCO/val2014 \
 --ok_vqa_test_questions_json_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/OKVQA/OpenEnded_mscoco_val2014_questions.json \
---ok_vqa_test_annotations_json_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/OKVQA/mscoco_val2014_annotations.json \
+--ok_vqa_test_annotations_json_path /PATH/TO/Robust_mmfm/open_flamingo_datasets/OKVQA/mscoco_val2014_annotations.json
 ```
-- This will conduct i2t and t2i on the flickr30k 1K test set for 1000 samples. The fine-tuned CLIP model in this case will be the one fine-tuned on `base` dataset of APGD with $\epsilon=\frac{1}{255}$ for all the data seeds.
-- The `--itr_dataset` can be changed to `MS_COCO, base, medium, all` and `non_fine_tuned`. Again, to get i2t and t2i for a non fine-tuned CLIP model, set `--itr_dataset non_fine_tuned`.
-- This will **not** work for targeted attack or 4-shots sub-setting.
+
+This evaluates i2t and t2i on the Flickr30k 1K test set (1000 samples) using a CLIP model fine-tuned on the `base` APGD dataset (ε=1/255).
+
+#### Parameters
+
+- `--itr_dataset`: Dataset for fine-tuned CLIP model
+  - `MS_COCO`, `base`, `medium`, `all`: Fine-tuned variants
+  - `non_fine_tuned`: Pre-trained CLIP only
+
+**Note:** Image-text retrieval does not support targeted attacks or 4-shot settings.
+
+---
+
+
+
+## License
+
+Please refer to the original [RobustVLM repository](https://github.com/chs20/RobustVLM) for licensing information.
+
+## Acknowledgments
+
+This code is adapted from the [RobustVLM](https://github.com/chs20/RobustVLM) repository. We thank the original authors for their foundational work.
