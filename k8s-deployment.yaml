@@ -1,0 +1,246 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: robust-mmfm
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: robust-mmfm-datasets-pvc
+  namespace: robust-mmfm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: robust-mmfm-models-pvc
+  namespace: robust-mmfm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: robust-mmfm-results-pvc
+  namespace: robust-mmfm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: robust-mmfm-config
+  namespace: robust-mmfm
+data:
+  LANG: "en_US.UTF-8"
+  LC_ALL: "en_US.UTF-8"
+  PYTHONUNBUFFERED: "1"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: robust-mmfm-gradio
+  namespace: robust-mmfm
+  labels:
+    app: robust-mmfm-gradio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: robust-mmfm-gradio
+  template:
+    metadata:
+      labels:
+        app: robust-mmfm-gradio
+    spec:
+      containers:
+      - name: robust-mmfm
+        image: robust-mmfm:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 7860
+          name: http
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: robust-mmfm-config
+        resources:
+          requests:
+            memory: "16Gi"
+            cpu: "4"
+            nvidia.com/gpu: 1
+          limits:
+            memory: "32Gi"
+            cpu: "8"
+            nvidia.com/gpu: 1
+        volumeMounts:
+        - name: datasets
+          mountPath: /workspace/Robust_MMFM/open_flamingo_datasets
+        - name: models
+          mountPath: /root/.cache/huggingface
+        - name: results
+          mountPath: /workspace/Robust_MMFM/Results
+        - name: clip-datasets
+          mountPath: /workspace/Robust_MMFM/clip_train_datasets
+        - name: classification-datasets
+          mountPath: /workspace/Robust_MMFM/image_classification_datasets
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 7860
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 7860
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+      volumes:
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: robust-mmfm-datasets-pvc
+      - name: models
+        persistentVolumeClaim:
+          claimName: robust-mmfm-models-pvc
+      - name: results
+        persistentVolumeClaim:
+          claimName: robust-mmfm-results-pvc
+      - name: clip-datasets
+        emptyDir: {}
+      - name: classification-datasets
+        emptyDir: {}
+      nodeSelector:
+        nvidia.com/gpu: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: robust-mmfm-gradio-service
+  namespace: robust-mmfm
+  labels:
+    app: robust-mmfm-gradio
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 7860
+    protocol: TCP
+    name: http
+  selector:
+    app: robust-mmfm-gradio
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: robust-mmfm-evaluation
+  namespace: robust-mmfm
+spec:
+  template:
+    metadata:
+      labels:
+        app: robust-mmfm-evaluation
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: evaluation
+        image: robust-mmfm:latest
+        imagePullPolicy: IfNotPresent
+        command: ["python", "-m", "vlm_eval.run_evaluation"]
+        args:
+          - "--eval_flickr30"
+          - "--dont_save_adv"
+          - "--verbose"
+          - "--attack"
+          - "apgd"
+          - "--eps"
+          - "8"
+          - "--steps"
+          - "100"
+          - "--shots"
+          - "0"
+          - "--batch_size"
+          - "1"
+          - "--num_samples"
+          - "8"
+          - "--trial_seeds"
+          - "42"
+          - "--num_trials"
+          - "1"
+          - "--model"
+          - "open_flamingo"
+          - "--vision_encoder_path"
+          - "ViT-L-14"
+          - "--lm_path"
+          - "anas-awadalla/mpt-7b"
+          - "--lm_tokenizer_path"
+          - "anas-awadalla/mpt-7b"
+          - "--precision"
+          - "float16"
+          - "--cross_attn_every_n_layers"
+          - "4"
+        envFrom:
+        - configMapRef:
+            name: robust-mmfm-config
+        resources:
+          requests:
+            memory: "32Gi"
+            cpu: "8"
+            nvidia.com/gpu: 1
+          limits:
+            memory: "64Gi"
+            cpu: "16"
+            nvidia.com/gpu: 1
+        volumeMounts:
+        - name: datasets
+          mountPath: /workspace/Robust_MMFM/open_flamingo_datasets
+        - name: models
+          mountPath: /root/.cache/huggingface
+        - name: results
+          mountPath: /workspace/Robust_MMFM/Results
+      volumes:
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: robust-mmfm-datasets-pvc
+      - name: models
+        persistentVolumeClaim:
+          claimName: robust-mmfm-models-pvc
+      - name: results
+        persistentVolumeClaim:
+          claimName: robust-mmfm-results-pvc
+      nodeSelector:
+        nvidia.com/gpu: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+  backoffLimit: 3
